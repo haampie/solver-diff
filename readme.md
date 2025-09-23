@@ -7,5 +7,7 @@ $ ./run_clingo.sh <file.lp> [time_limit]
 Then parse the output and show diffs between subsequent answers using this:
 
 ```
-$ ./parse_clingo_output.py < clingo-output.txt
+$ ./parse_clingo_output.py < out-0.txt
 ```
+
+or any other `out-*.txt` file
