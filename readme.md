@@ -1,13 +1,13 @@
 Run the clingo solver with shuffled output in parallel using this:
 
 ```
-$ ./run_clingo.sh <file.lp> [time_limit]
+$ ./run-clingo.sh <file.lp> [time_limit]
 ```
 
 Then parse the output and show diffs between subsequent answers using this:
 
 ```
-$ ./parse_clingo_output.py < out-0.txt
+$ ./diff-solutions.py < out-0.txt
 ```
 
 or any other `out-*.txt` file
