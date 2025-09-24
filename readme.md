@@ -40,7 +40,7 @@ Then you can do two things:
    This can help identify what the solver needs to change to get "unstuck". As an example, it can
    help identify that certain properties have to be changed all at once to improve the optimization
    score, while tweaking individual properties does not contribute to improving the score. That
-   can indicate that better optimization criteria so progress can be made "greedily".
+   can indicate that better optimization criteria may be needed to make progress incrementally.
 
 2. Compare the final solutions of two different solver runs:
 
