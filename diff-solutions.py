@@ -2,13 +2,11 @@
 import argparse, re, sys
 from typing import TextIO
 
-TOKENIZER = re.compile(r'("[^"]*")|(\)(?: |$))|(\)|[^")]+)')
+STRING = re.compile(r'"[^"]*"')
 
 
 def get_facts(line: str) -> list[str]:
-    facts = TOKENIZER.sub(
-        lambda m: ")\n" if m.group(2) else m.group(0), line.strip()
-    ).split("\n")
+    facts = STRING.sub(lambda m: m.group(0).replace(" ", "_"), line.strip()).split()
     facts.sort()
     return facts
 
