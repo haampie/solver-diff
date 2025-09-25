@@ -7,6 +7,13 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
+clingo_version="$(clingo --help | head -n1 | awk '{print $3}')"
+required_version="5.8.0"  # has start/end time in JSON output
+if [ "$(printf '%s\n' "$required_version" "$clingo_version" | sort -V | head -n1)" != "$required_version" ]; then
+    echo "Error: clingo version $required_version or higher is required. Found version $clingo_version." >&2
+    exit 1
+fi
+
 for f in concretize.lp heuristic.lp direct_dependency.lp libc_compatibility.lp; do
     if [ ! -f "$f" ]; then
         echo "Error: Required file '$f' not found." >&2
@@ -25,7 +32,7 @@ for i in $(seq 0 3); do
             echo "Run $j (CPU $i)"
             shuffled_file="shuffled.$j.lp"
             ./shuffle.py < "$facts_file" > "$shuffled_file"
-            taskset -c $i clingo --time-limit="$time_limit" --verbose=3 --stats=2 --configuration=tweety --opt-strategy=usc,one,1 --heuristic=Domain concretize.lp heuristic.lp direct_dependency.lp libc_compatibility.lp "$shuffled_file" > out-$j.txt
+            taskset -c $i clingo --time-limit="$time_limit" --verbose=3 --outf=2 --stats=2 --configuration=tweety --opt-strategy=usc,one,1 --heuristic=Domain concretize.lp heuristic.lp direct_dependency.lp libc_compatibility.lp "$shuffled_file" > out-$j.json
         done
     ) &
 done

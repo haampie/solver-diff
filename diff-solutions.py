@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-import argparse, re, sys
-from typing import TextIO
-
-STRING = re.compile(r'"[^"]*"')
+import argparse, sys
+import json
 
 
-def get_facts(line: str) -> list[str]:
-    facts = STRING.sub(lambda m: m.group(0).replace(" ", "_"), line.strip()).split()
+def get_facts(witness) -> list[str]:
+    facts = witness["Value"]
     facts.sort()
     return facts
 
 
-def filename(i: int) -> str:
-    return f"answer-{i}.txt"
+def get_last_answer(data: dict) -> list[str]:
+    """Extract facts from the last answer in clingo output."""
+    *_, last = (w for w in data["Call"][-1]["Witnesses"] if "Value" in w)
+    return get_facts(last)
 
 
 def print_diff(
@@ -37,44 +37,28 @@ def print_diff(
         j += 1
 
 
-def get_last_answer(input_file: TextIO) -> list[str]:
-    """Extract facts from the last answer in clingo output."""
-    lines = input_file.read().splitlines()
-    last_answer_line = None
-
-    for i, line in enumerate(lines):
-        if line.startswith("Answer:"):
-            last_answer_line = lines[i + 1]
-
-    return get_facts(last_answer_line) if last_answer_line else []
-
-
-def intermediate_diffs(input_file: TextIO) -> None:
+def intermediate_diffs(data: dict) -> None:
     """Extract answers from clingo output and print diffs between them."""
-    is_answer = False
-    curr, prev, answer_id = [], [], 0
-    curr_opt, prev_opt = "", ""
-    for line in input_file:
-        if is_answer:
-            prev, curr = curr, get_facts(line)
-            with open(filename(answer_id), "w") as f:
-                f.write("\n".join(curr))
-            if answer_id > 1:
-                print_diff(
-                    prev,
-                    curr,
-                    file_before=filename(answer_id - 1),
-                    file_after=filename(answer_id),
-                )
-            is_answer = False
-        elif line.startswith("Answer:"):
-            is_answer, answer_id = True, answer_id + 1
-        elif line.startswith("Optimization:"):
-            prev_opt, curr_opt = curr_opt, line[13:].strip()
-            if answer_id > 1:
-                sys.stdout.write(
-                    f"\033[91m-opt: {prev_opt}\033[0m\n\033[92m+opt: {curr_opt}\033[0m\n\n"
-                )
+    curr_f, prev_f = [], []
+    curr_c, prev_c = [], []
+    for i, witness in enumerate(
+        w for w in data["Call"][-1]["Witnesses"] if "Value" in w
+    ):
+        prev_f, curr_f = curr_f, get_facts(witness)
+        prev_c, curr_c = curr_c, witness["Costs"]
+        if i > 1:
+            print_diff(
+                prev_f,
+                curr_f,
+                file_before=f"answer {i}",
+                file_after=f"answer {i + 1}",
+            )
+            num_digits = [max(len(str(x)), len(str(y))) for x, y in zip(prev_c, curr_c)]
+            prev_str = ",".join(f"{d:>{n}}" for d, n in zip(prev_c, num_digits))
+            curr_str = ",".join(f"{c:>{n}}" for c, n in zip(curr_c, num_digits))
+            sys.stdout.write(
+                f"\n\033[91m-opt: {prev_str}\033[0m\n\033[92m+opt: {curr_str}\033[0m\n\n"
+            )
 
 
 if __name__ == "__main__":
@@ -84,11 +68,14 @@ if __name__ == "__main__":
 
     args = p.parse_args()
 
+    with open(args.file1) as input_file:
+        data1 = json.load(input_file)
+
     if args.file2:
-        with open(args.file1) as f1, open(args.file2) as f2:
-            facts1 = get_last_answer(f1)
-            facts2 = get_last_answer(f2)
+        with open(args.file2) as f2:
+            data2 = json.load(f2)
+        facts1 = get_last_answer(data1)
+        facts2 = get_last_answer(data2)
         print_diff(facts1, facts2, file_before=args.file1, file_after=args.file2)
     else:
-        with open(args.file1) as input_file:
-            intermediate_diffs(input_file)
+        intermediate_diffs(data1)

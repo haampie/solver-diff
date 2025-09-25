@@ -5,17 +5,22 @@ This repo is meant to help analyze Spack's solver performance:
 
 ## Getting started
 
-To get started, copy or symlink the following files into this directory:
+Install `clingo-bootstrap@5.8:` and make it available in your PATH:
+
+```
+spack install clingo-bootstrap@5.8:
+```
+
+Then copy or symlink the following files into this directory:
 
 ```
 spack=/path/to/spack
-ln -s $spack/lib/spack/spack/solver/concretize.lp concretize.lp
-ln -s $spack/lib/spack/spack/solver/heuristic.lp heuristic.lp
-ln -s $spack/lib/spack/spack/solver/direct_dependency.lp direct_dependency.lp
-ln -s $spack/lib/spack/spack/solver/libc_compatibility.lp libc_compatibility.lp
+for f in concretize.lp heuristic.lp direct_dependency.lp libc_compatibility.lp; do
+    ln -s $spack/lib/spack/spack/solver/$f $f
+done
 ```
 
-Then, generate an input file for clingo from Spack using:
+Generate an input file for clingo from Spack using:
 
 ```
 spack solver --show=asp <your spec> > problem.lp
@@ -34,7 +39,7 @@ Then you can do two things:
 1. Show the diff between intermediate solutions from a single solver run
 
    ```
-   $ ./diff-solutions.py out-0.txt
+   $ ./diff-solutions.py out-0.json
    ```
 
    This can help identify what the solver needs to change to get "unstuck". As an example, it can
@@ -45,7 +50,7 @@ Then you can do two things:
 2. Compare the final solutions of two different solver runs:
 
    ```
-   $ ./diff-solutions.py out-0.txt out-1.txt
+   $ ./diff-solutions.py out-0.json out-1.json
    ```
 
    Typically Spack's solutions are deterministic at the level of the output spec, but in practice
