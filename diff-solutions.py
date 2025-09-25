@@ -2,8 +2,10 @@
 import argparse, sys
 import json
 
+def get_solutions(data: dict):
+    return [w for w in data["Call"][-1]["Witnesses"] if "Value" in w]
 
-def get_facts(witness) -> list[str]:
+def sort_facts(witness) -> list[str]:
     facts = witness["Value"]
     facts.sort()
     return facts
@@ -12,7 +14,7 @@ def get_facts(witness) -> list[str]:
 def get_last_answer(data: dict) -> list[str]:
     """Extract facts from the last answer in clingo output."""
     *_, last = (w for w in data["Call"][-1]["Witnesses"] if "Value" in w)
-    return get_facts(last)
+    return sort_facts(last)
 
 
 def print_diff(
@@ -39,26 +41,34 @@ def print_diff(
 
 def intermediate_diffs(data: dict) -> None:
     """Extract answers from clingo output and print diffs between them."""
-    curr_f, prev_f = [], []
-    curr_c, prev_c = [], []
-    for i, witness in enumerate(
-        w for w in data["Call"][-1]["Witnesses"] if "Value" in w
-    ):
-        prev_f, curr_f = curr_f, get_facts(witness)
-        prev_c, curr_c = curr_c, witness["Costs"]
+    curr_witness = None
+    prev_witness = None
+    solutions = get_solutions(data)
+
+    for i, witness in enumerate(solutions):
+        sort_facts(witness)
+        prev_witness, curr_witness = curr_witness, witness
         if i > 1:
             print_diff(
-                prev_f,
-                curr_f,
+                prev_witness["Value"],
+                curr_witness["Value"],
                 file_before=f"answer {i}",
                 file_after=f"answer {i + 1}",
             )
-            num_digits = [max(len(str(x)), len(str(y))) for x, y in zip(prev_c, curr_c)]
-            prev_str = ",".join(f"{d:>{n}}" for d, n in zip(prev_c, num_digits))
-            curr_str = ",".join(f"{c:>{n}}" for c, n in zip(curr_c, num_digits))
+            num_digits = [max(len(str(x)), len(str(y))) for x, y in zip(prev_witness["Costs"], curr_witness["Costs"])]
+            prev_str = ",".join(f"{d:>{n}}" for d, n in zip(prev_witness["Costs"], num_digits))
+            curr_str = ",".join(f"{c:>{n}}" for c, n in zip(curr_witness["Costs"], num_digits))
             sys.stdout.write(
                 f"\n\033[91m-opt: {prev_str}\033[0m\n\033[92m+opt: {curr_str}\033[0m\n\n"
             )
+
+    all_times = [data["Call"][-1]["Start"], *(w["Time"] for w in solutions), data["Call"][-1]["Stop"]]
+
+    print(f"   Start: {all_times[0]:5.1f}s")
+    for i in range(1, len(all_times)):
+         time_delta = all_times[i] - all_times[i - 1]
+         preamble = f"{i:>2} to {i+1:>2}:" if i < len(all_times) - 1 else "    Stop:"
+         print(f"{preamble} {all_times[i]:5.1f}s [{time_delta:5.1f}s]")
 
 
 if __name__ == "__main__":
